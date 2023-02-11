@@ -45,6 +45,31 @@ public class Cookie {
         return sb.toString();
     }
 
+    /**
+     * Convert a cookie specification string into a JSONObject. The string
+     * must contain a name value pair separated by '='. The name and the value
+     * will be unescaped, possibly converting '+' and '%' sequences. The
+     * cookie properties may follow, separated by ';', also represented as
+     * name=value (except the Attribute properties like "Secure" or "HttpOnly",
+     * which do not have a value. The value {@link Boolean#TRUE} will be used for these).
+     * The name will be stored under the key "name", and the value will be
+     * stored under the key "value". This method does not do checking or
+     * validation of the parameters. It only converts the cookie string into
+     * a JSONObject. All attribute names are converted to lower case keys in the
+     * JSONObject (HttpOnly =&gt; httponly). If an attribute is specified more than
+     * once, only the value found closer to the end of the cookie-string is kept.
+     * @param string The cookie specification string.
+     * @param maxNestingDepth The maximum nesting depth.
+     * @return A JSONObject containing "name", "value", and possibly other
+     *  members.
+     * @throws JSONException If there is an error parsing the Cookie String.
+     * Cookie strings must have at least one '=' character and the 'name'
+     * portion of the cookie must not be blank.
+     */
+    public static JSONObject toJSONObject(String string, int maxNestingDepth) {
+        JSONTokener x = new JSONTokener(string).withMaxNestingDepth(maxNestingDepth);
+        return toJSONObject(string, x);
+    }
 
     /**
      * Convert a cookie specification string into a JSONObject. The string
@@ -67,13 +92,15 @@ public class Cookie {
      * portion of the cookie must not be blank.
      */
     public static JSONObject toJSONObject(String string) {
+        JSONTokener x = new JSONTokener(string);
+        return toJSONObject(string, x);
+    }
+
+    private static JSONObject toJSONObject(String string, JSONTokener x) {
         final JSONObject     jo = new JSONObject();
         String         name;
         Object         value;
-        
-        
-        JSONTokener x = new JSONTokener(string);
-        
+
         name = unescape(x.nextTo('=').trim());
         //per RFC6265, if the name is blank, the cookie should be ignored.
         if("".equals(name)) {
@@ -125,7 +152,7 @@ public class Cookie {
      */
     public static String toString(JSONObject jo) throws JSONException {
         StringBuilder sb = new StringBuilder();
-        
+
         String name = null;
         Object value = null;
         for(String key : jo.keySet()){
@@ -139,18 +166,18 @@ public class Cookie {
                 break;
             }
         }
-        
+
         if(name == null || "".equals(name.trim())) {
             throw new JSONException("Cookie does not have a name");
         }
         if(value == null) {
             value = "";
         }
-        
+
         sb.append(escape(name));
         sb.append("=");
         sb.append(escape((String)value));
-        
+
         for(String key : jo.keySet()){
             if("name".equalsIgnoreCase(key)
                     || "value".equalsIgnoreCase(key)) {
@@ -170,7 +197,7 @@ public class Cookie {
                     .append(escape(value.toString()));
             }
         }
-        
+
         return sb.toString();
     }
 

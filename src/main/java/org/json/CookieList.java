@@ -21,12 +21,35 @@ public class CookieList {
      * cookielistJSONObject.put(cookieJSONObject.getString("name"),
      *     cookieJSONObject.getString("value"));
      * @param string  A cookie list string
+     * @param maxNestingDepth The maximum nesting depth.
+     * @return A JSONObject
+     * @throws JSONException if a called function fails
+     */
+    public static JSONObject toJSONObject(String string, int maxNestingDepth) throws JSONException {
+        JSONTokener x = new JSONTokener(string).withMaxNestingDepth(maxNestingDepth);
+        return toJSONObject(string, x);
+    }
+
+    /**
+     * Convert a cookie list into a JSONObject. A cookie list is a sequence
+     * of name/value pairs. The names are separated from the values by '='.
+     * The pairs are separated by ';'. The names and the values
+     * will be unescaped, possibly converting '+' and '%' sequences.
+     *
+     * To add a cookie to a cookie list,
+     * cookielistJSONObject.put(cookieJSONObject.getString("name"),
+     *     cookieJSONObject.getString("value"));
+     * @param string  A cookie list string
      * @return A JSONObject
      * @throws JSONException if a called function fails
      */
     public static JSONObject toJSONObject(String string) throws JSONException {
-        JSONObject jo = new JSONObject();
         JSONTokener x = new JSONTokener(string);
+        return toJSONObject(string, x);
+    }
+
+    private static JSONObject toJSONObject(String string, JSONTokener x) throws JSONException {
+        JSONObject jo = new JSONObject();
         while (x.more()) {
             String name = Cookie.unescape(x.nextTo('='));
             x.next('=');

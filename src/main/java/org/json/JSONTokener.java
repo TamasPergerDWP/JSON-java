@@ -19,6 +19,12 @@ Public Domain.
  * @version 2014-05-03
  */
 public class JSONTokener {
+    /** Used to indicate there's no defined limit to the maximum nesting depth when parsing a JSON. */
+    public static final int UNDEFINED_MAXIMUM_NESTING_DEPTH = -1;
+
+    /** The default maximum nesting depth when parsing a JSON. */
+    public static final int DEFAULT_MAXIMUM_NESTING_DEPTH = 512;
+
     /** current read character position on the current line. */
     private long character;
     /** flag to indicate if the end of the input has been found. */
@@ -36,6 +42,8 @@ public class JSONTokener {
     /** the number of characters read in the previous line. */
     private long characterPreviousLine;
 
+    private int currentNestingDepth;
+    private int maxNestingDepth = DEFAULT_MAXIMUM_NESTING_DEPTH;
 
     /**
      * Construct a JSONTokener from a Reader. The caller must close the Reader.
@@ -53,6 +61,7 @@ public class JSONTokener {
         this.character = 1;
         this.characterPreviousLine = 0;
         this.line = 1;
+        this.currentNestingDepth = 0;
     }
 
 
@@ -74,6 +83,22 @@ public class JSONTokener {
         this(new StringReader(s));
     }
 
+    /**
+     * Override the maximum nesting depth for JSON parsing.
+     *
+     * @param maxNestingDepth The maximum nesting depth, default 512.
+     * @return the JSONTokener instance with the maxNestingDepth set.
+     */
+    public JSONTokener withMaxNestingDepth(int maxNestingDepth) {
+
+        if (maxNestingDepth > UNDEFINED_MAXIMUM_NESTING_DEPTH) {
+            this.maxNestingDepth = maxNestingDepth;
+        } else {
+            this.maxNestingDepth = UNDEFINED_MAXIMUM_NESTING_DEPTH;
+        }
+
+        return this;
+    }
 
     /**
      * Back up one character. This provides a sort of lookahead capability,
@@ -125,7 +150,7 @@ public class JSONTokener {
 
     /**
      * Checks if the end of the input has been reached.
-     *  
+     *
      * @return true if at the end of the file and we didn't step back
      */
     public boolean end() {
@@ -189,7 +214,7 @@ public class JSONTokener {
         this.previous = (char) c;
         return this.previous;
     }
-    
+
     /**
      * Get the last character read from the input or '\0' if nothing has been read yet.
      * @return the last character read from the input.
@@ -415,14 +440,26 @@ public class JSONTokener {
         case '{':
             this.back();
             try {
-                return new JSONObject(this);
+                if (maxNestingDepth == currentNestingDepth) {
+                    throw syntaxError("Maximum nesting depth of " + maxNestingDepth + " reached");
+                }
+                currentNestingDepth++;
+                JSONObject nested = new JSONObject(this);
+                currentNestingDepth--;
+                return nested;
             } catch (StackOverflowError e) {
                 throw new JSONException("JSON Array or Object depth too large to process.", e);
             }
         case '[':
             this.back();
             try {
-                return new JSONArray(this);
+                if (maxNestingDepth == currentNestingDepth) {
+                    throw syntaxError("Maximum nesting depth of " + maxNestingDepth + " reached");
+                }
+                currentNestingDepth++;
+                JSONArray nested = new JSONArray(this);
+                currentNestingDepth--;
+                return nested;
             } catch (StackOverflowError e) {
                 throw new JSONException("JSON Array or Object depth too large to process.", e);
             }
