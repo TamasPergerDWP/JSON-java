@@ -31,6 +31,8 @@ import org.json.JSONObject;
 import org.json.JSONPointerException;
 import org.json.JSONString;
 import org.json.JSONTokener;
+import org.json.XML;
+import org.json.XMLParserConfiguration;
 import org.json.junit.data.MyJsonString;
 import org.junit.Test;
 
@@ -42,7 +44,7 @@ import com.jayway.jsonpath.JsonPath;
  * Tests for JSON-Java JSONArray.java
  */
 public class JSONArrayTest {
-    private final String arrayStr = 
+    private final String arrayStr =
             "["+
                 "true,"+
                 "false,"+
@@ -77,7 +79,7 @@ public class JSONArrayTest {
                 .put("abc")
                 .put(string1)
                 .put(2);
-        
+
         JSONArray obj2 = new JSONArray()
                 .put("abc")
                 .put(string1)
@@ -97,12 +99,12 @@ public class JSONArrayTest {
                 .put("abc")
                 .put(2.0)
         		.put(new String(string2));
-        
+
         assertFalse("obj1-obj2 Should eval to false", obj1.similar(obj2));
         assertTrue("obj1-obj3 Should eval to true", obj1.similar(obj3));
         assertFalse("obj4-obj5 Should eval to false", obj4.similar(obj5));
     }
-        
+
     /**
      * Attempt to create a JSONArray with a null string.
      * Expects a NullPointerException.
@@ -123,12 +125,12 @@ public class JSONArrayTest {
         try {
             assertNull("Should throw an exception", new JSONArray(str));
         } catch (JSONException e) {
-            assertEquals("Expected an exception message", 
+            assertEquals("Expected an exception message",
                     "A JSONArray text must start with '[' at 0 [character 1 line 1]",
                     e.getMessage());
         }
     }
-    
+
     /**
      * Attempt to create a JSONArray with an unclosed array.
      * Expects an exception
@@ -138,12 +140,12 @@ public class JSONArrayTest {
         try {
             assertNull("Should throw an exception", new JSONArray("["));
         } catch (JSONException e) {
-            assertEquals("Expected an exception message", 
+            assertEquals("Expected an exception message",
                     "Expected a ',' or ']' at 1 [character 2 line 1]",
                     e.getMessage());
         }
     }
-    
+
     /**
      * Attempt to create a JSONArray with an unclosed array.
      * Expects an exception
@@ -153,12 +155,12 @@ public class JSONArrayTest {
         try {
             assertNull("Should throw an exception", new JSONArray("[\"test\""));
         } catch (JSONException e) {
-            assertEquals("Expected an exception message", 
+            assertEquals("Expected an exception message",
                     "Expected a ',' or ']' at 7 [character 8 line 1]",
                     e.getMessage());
         }
     }
-    
+
     /**
      * Attempt to create a JSONArray with an unclosed array.
      * Expects an exception
@@ -168,7 +170,7 @@ public class JSONArrayTest {
         try {
             assertNull("Should throw an exception", new JSONArray("[\"test\","));
         } catch (JSONException e) {
-            assertEquals("Expected an exception message", 
+            assertEquals("Expected an exception message",
                     "Expected a ',' or ']' at 8 [character 9 line 1]",
                     e.getMessage());
         }
@@ -185,20 +187,92 @@ public class JSONArrayTest {
         try {
             assertNull("Should throw an exception", new JSONArray((Object)str));
         } catch (JSONException e) {
-            assertTrue("Expected an exception message", 
+            assertTrue("Expected an exception message",
                     "JSONArray initial value should be a string or collection or array.".
                     equals(e.getMessage()));
         }
     }
-    
+
+    /**
+     * Attempt to create a JSONArray with a string that is too deeply nested.
+     * Expects a JSONException.
+     */
+    @Test
+    public void testMaxNestingDepthOf42IsRespected() {
+        int maxNestingDepth = 42;
+        try {
+            // too deep nesting
+            int depth = 6000;
+            String open = "[";
+            String value = "{\"a\":false}";
+            String close = "]";
+            final String wayTooDeepJSON = new String(new char[depth]).replace("\0", open) +
+                value +
+                new String(new char[depth]).replace("\0", close);
+            assertNull("Expected an exception",new JSONArray(wayTooDeepJSON, maxNestingDepth));
+        } catch (JSONException e) {
+            assertTrue("Wrong throwable thrown: not expecting message <" + e.getMessage() + ">",
+                e.getMessage().startsWith("Maximum nesting depth of " + maxNestingDepth));
+        }
+    }
+
+    @Test
+    public void testMaxNestingDepthIsRespectedWithValidJSON() {
+        final String tooDeepJSON = "[[{Test:{" +
+            "employee:{" +
+            "name:\"sonoo\"," +
+            "salary:56000," +
+            "married:true" +
+            "}" +
+            "}" +
+            "}]]";
+
+        final int maxNestingDepth = 3;
+
+        try {
+            assertNull("Expected an exception",new JSONArray(tooDeepJSON, maxNestingDepth));
+        } catch (JSONException e) {
+            assertTrue("Wrong throwable thrown: not expecting message <" + e.getMessage() + ">",
+                e.getMessage().startsWith("Maximum nesting depth of " + maxNestingDepth));
+        }
+    }
+
+    @Test
+    public void testMaxNestingDepthWithValidFittingJSON() {
+        final String perfectlyFineJSON = "[[{Test:{" +
+            "employee:{" +
+            "name:\"sonoo\"," +
+            "salary:56000," +
+            "married:true" +
+            "}," +
+            "pet:{" +
+            "name:\"Snoopy\"" +
+            "}," +
+            "plant:{" +
+            "name:\"Iris\"" +
+            "}" +
+            "}" +
+            "}]]";
+
+        final int maxNestingDepth = 4;
+
+        try {
+            new JSONArray(perfectlyFineJSON, maxNestingDepth);
+        } catch (JSONException e) {
+            e.printStackTrace();
+            fail("XML document should be parsed as its maximum depth fits the maxNestingDepth " +
+                "parameter of the XMLParserConfiguration used");
+        }
+    }
+
     /**
      * Verifies that the constructor has backwards compatibility with RAW types pre-java5.
      */
     @Test
     public void verifyConstructor() {
-        
+
         final JSONArray expected = new JSONArray("[10]");
-        
+
         @SuppressWarnings("rawtypes")
         Collection myRawC = Collections.singleton(Integer.valueOf(10));
         JSONArray jaRaw = new JSONArray(myRawC);
@@ -269,7 +343,7 @@ public class JSONArrayTest {
      */
     @Test
     public void verifyPutCollection() {
-        
+
         final JSONArray expected = new JSONArray("[[10]]");
 
         @SuppressWarnings("rawtypes")
@@ -300,13 +374,13 @@ public class JSONArrayTest {
         )));
     }
 
-    
+
     /**
      * Verifies that the put Map has backwards compatibility with RAW types pre-java5.
      */
     @Test
     public void verifyPutMap() {
-        
+
         final JSONArray expected = new JSONArray("[{\"myKey\":10}]");
 
         @SuppressWarnings("rawtypes")
@@ -461,7 +535,7 @@ public class JSONArrayTest {
     }
 
     /**
-     * Exercise JSONArray.join() by converting a JSONArray into a 
+     * Exercise JSONArray.join() by converting a JSONArray into a
      * comma-separated string. Since this is very nearly a JSON document,
      * array braces are added to the beginning and end prior to validation.
      */
@@ -500,7 +574,7 @@ public class JSONArrayTest {
     /**
      * Confirm the JSONArray.length() method
      */
-    @Test 
+    @Test
     public void length() {
         assertTrue("expected empty JSONArray length 0",
                 new JSONArray().length() == 0);
@@ -519,7 +593,7 @@ public class JSONArrayTest {
      * and opt[type](index, default) API methods.
      */
     @SuppressWarnings("boxing")
-    @Test 
+    @Test
     public void opt() {
         JSONArray jsonArray = new JSONArray(this.arrayStr);
         assertTrue("Array opt value true",
@@ -567,12 +641,12 @@ public class JSONArrayTest {
 
         JSONArray nestedJsonArray = jsonArray.optJSONArray(9);
         assertTrue("Array opt JSONArray", nestedJsonArray != null);
-        assertTrue("Array opt JSONArray default", 
+        assertTrue("Array opt JSONArray default",
                 null == jsonArray.optJSONArray(99));
 
         JSONObject nestedJsonObject = jsonArray.optJSONObject(10);
         assertTrue("Array opt JSONObject", nestedJsonObject != null);
-        assertTrue("Array opt JSONObject default", 
+        assertTrue("Array opt JSONObject default",
                 null == jsonArray.optJSONObject(99));
 
         assertTrue("Array opt long",
@@ -591,7 +665,7 @@ public class JSONArrayTest {
         )));
         Util.checkJSONObjectMaps(nestedJsonObject);
     }
-    
+
     /**
      * Verifies that the opt methods properly convert string values.
      */
@@ -640,7 +714,7 @@ public class JSONArrayTest {
         // 6
         jsonArray.put("objectPut");
 
-        String jsonObjectStr = 
+        String jsonObjectStr =
             "{"+
                 "\"key10\":\"val10\","+
                 "\"key20\":\"val20\","+
@@ -720,7 +794,7 @@ public class JSONArrayTest {
 
         // 7 will be null
 
-        String jsonObjectStr = 
+        String jsonObjectStr =
             "{"+
                 "\"key10\":\"val10\","+
                 "\"key20\":\"val20\","+
@@ -768,12 +842,12 @@ public class JSONArrayTest {
     }
 
     /**
-     * Exercise the JSONArray.remove(index) method 
+     * Exercise the JSONArray.remove(index) method
      * and confirm the resulting JSONArray.
      */
     @Test
     public void remove() {
-        String arrayStr1 = 
+        String arrayStr1 =
             "["+
                 "1"+
             "]";
@@ -790,7 +864,7 @@ public class JSONArrayTest {
      */
     @Test
     public void notSimilar() {
-        String arrayStr1 = 
+        String arrayStr1 =
             "["+
                 "1"+
             "]";
@@ -849,7 +923,7 @@ public class JSONArrayTest {
                     "]" +
                 "]";
 
-        String jsonArray1Strs [] = 
+        String jsonArray1Strs [] =
             {
                 "[",
                 " [",
@@ -903,7 +977,7 @@ public class JSONArrayTest {
         for (String s : jsonArray1Strs) {
             list.contains(s);
         }
-        
+
         actualStrArray = jsonArray.toString(4).split("\\r?\\n");
         assertEquals("Expected lines", jsonArray1Strs.length, actualStrArray.length);
         list = Arrays.asList(actualStrArray);
@@ -994,17 +1068,17 @@ public class JSONArrayTest {
         )));
         Util.checkJSONObjectMaps(nestedJsonObject);
     }
-    
+
     @Test(expected = JSONPointerException.class)
     public void queryWithNoResult() {
         new JSONArray().query("/a/b");
     }
-    
+
     @Test
     public void optQueryWithNoResult() {
         assertNull(new JSONArray().optQuery("/a/b"));
     }
-    
+
     @Test(expected = IllegalArgumentException.class)
     public void optQueryWithSyntaxError() {
         new JSONArray().optQuery("invalid");
@@ -1079,7 +1153,7 @@ public class JSONArrayTest {
         } finally {
             stringWriter.close();
         }
-        
+
         stringWriter = new StringWriter();
         try {
             String actualStr = jsonArray.write(stringWriter, 2, 1).toString();
@@ -1087,9 +1161,9 @@ public class JSONArrayTest {
             Util.compareActualVsExpectedJsonArrays(jsonArray, finalArray);
             assertTrue("write() expected " + expectedStr +
                 " but found " + actualStr,
-                actualStr.startsWith("[\n" + 
-                        "   \"value1\",\n" + 
-                        "   \"value2\",\n" + 
+                actualStr.startsWith("[\n" +
+                        "   \"value1\",\n" +
+                        "   \"value2\",\n" +
                         "   {")
                 && actualStr.contains("\"key1\": 1")
                 && actualStr.contains("\"key2\": false")
@@ -1215,7 +1289,7 @@ public class JSONArrayTest {
 
     /**
      * Create a JSONArray with specified initial capacity.
-     * Expects an exception if the initial capacity is specified as a negative integer 
+     * Expects an exception if the initial capacity is specified as a negative integer
      */
     @Test
     public void testJSONArrayInt() {
@@ -1227,12 +1301,12 @@ public class JSONArrayTest {
         try {
             assertNotNull("Should throw an exception", new JSONArray(-1));
         } catch (JSONException e) {
-            assertEquals("Expected an exception message", 
+            assertEquals("Expected an exception message",
                     "JSONArray initial capacity cannot be negative.",
                     e.getMessage());
         }
     }
-    
+
     /**
      * Verifies that the object constructor can properly handle any supported collection object.
      */
@@ -1244,7 +1318,7 @@ public class JSONArrayTest {
         JSONArray a = new JSONArray(o);
         assertNotNull("Should not error", a);
         assertEquals("length", 3, a.length());
-        
+
         // should NOT copy the collection
         // this is required for backwards compatibility
         o = new ArrayList<Object>();
@@ -1267,7 +1341,7 @@ public class JSONArrayTest {
         }
         Util.checkJSONArrayMaps(a);
     }
-    
+
     /**
      * Verifies that the JSONArray constructor properly copies the original.
      */
@@ -1278,7 +1352,7 @@ public class JSONArrayTest {
         JSONArray a2 = new JSONArray(a1);
         assertNotNull("Should not error", a2);
         assertEquals("length", a1.length(), a2.length());
-        
+
         for(int i = 0; i < a1.length(); i++) {
             assertEquals("index " + i + " are equal", a1.get(i), a2.get(i));
         }
@@ -1286,7 +1360,7 @@ public class JSONArrayTest {
                 a1, a2
         )));
     }
-    
+
     /**
      * Verifies that the object constructor can properly handle any supported collection object.
      */
@@ -1298,7 +1372,7 @@ public class JSONArrayTest {
         a2.putAll(a1);
         assertNotNull("Should not error", a2);
         assertEquals("length", a1.length(), a2.length());
-        
+
         for(int i = 0; i < a1.length(); i++) {
             assertEquals("index " + i + " are equal", a1.get(i), a2.get(i));
         }

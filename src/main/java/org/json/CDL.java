@@ -173,6 +173,18 @@ public class CDL {
     /**
      * Produce a JSONArray of JSONObjects from a comma delimited text string,
      * using the first row as a source of names.
+     * @param string The comma delimited text.
+     * @param maxNestingDepth The maximum nesting depth.
+     * @return A JSONArray of JSONObjects.
+     * @throws JSONException if a called function fails
+     */
+    public static JSONArray toJSONArray(String string, int maxNestingDepth) throws JSONException {
+        return toJSONArray(new JSONTokener(string).withMaxNestingDepth(maxNestingDepth));
+    }
+
+    /**
+     * Produce a JSONArray of JSONObjects from a comma delimited text string,
+     * using the first row as a source of names.
      * @param x The JSONTokener containing the comma delimited text.
      * @return A JSONArray of JSONObjects.
      * @throws JSONException if a called function fails
@@ -192,6 +204,20 @@ public class CDL {
     public static JSONArray toJSONArray(JSONArray names, String string)
             throws JSONException {
         return toJSONArray(names, new JSONTokener(string));
+    }
+
+    /**
+     * Produce a JSONArray of JSONObjects from a comma delimited text string
+     * using a supplied JSONArray as the source of element names.
+     * @param names A JSONArray of strings.
+     * @param string The comma delimited text.
+     * @param maxNestingDepth The maximum nesting depth.
+     * @return A JSONArray of JSONObjects.
+     * @throws JSONException if a called function fails
+     */
+    public static JSONArray toJSONArray(JSONArray names, String string, int maxNestingDepth)
+        throws JSONException {
+        return toJSONArray(names, new JSONTokener(string).withMaxNestingDepth(maxNestingDepth));
     }
 
     /**
